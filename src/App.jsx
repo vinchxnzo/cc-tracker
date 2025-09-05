@@ -45,6 +45,29 @@ const defaultCards = ([
       { id: "csr-stubhub", label: "$300 StubHub ($150 semi-annual)", amount: 150, cadence: CADENCE.SEMI_ANNUAL },
     ],
   },
+  {
+  id: "amex-plat",
+  name: "Amex Platinum",
+  annualFee: 695,
+  rewardsNote: "Premium travel; rich monthly & annual credits",
+  credits: [
+    // Premium Travel
+    { id: "plat-airline", label: "$200 Airline Fee Credit (annual)", amount: 200, cadence: CADENCE.ANNUAL },
+    { id: "plat-hotel",   label: "$200 Hotel Credit (FH+R/THC, annual)", amount: 200, cadence: CADENCE.ANNUAL },
+    { id: "plat-clear",   label: "$199 CLEAR Plus (annual)", amount: 199, cadence: CADENCE.ANNUAL },
+
+    // Entertainment & Dining
+    { id: "plat-digital", label: "$20 Digital Entertainment (monthly)", amount: 20, cadence: CADENCE.MONTHLY },
+
+    // Uber Cash: $15/mo + $20 Dec bonus
+    { id: "plat-uber",       label: "Uber Cash ($15/mo)", amount: 15, cadence: CADENCE.MONTHLY },
+    { id: "plat-uber-dec20", label: "Uber Cash (Dec bonus $20)", amount: 20, cadence: CADENCE.ANNUAL },
+
+    // Shopping
+    { id: "plat-saks",    label: "Shop Saks ($50 semi-annual)", amount: 50, cadence: CADENCE.SEMI_ANNUAL },
+    { id: "plat-walmart", label: "Walmart+ ($12.95/mo)", amount: 12.95, cadence: CADENCE.MONTHLY },
+  ],
+},
 ]);
 
 const months = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
