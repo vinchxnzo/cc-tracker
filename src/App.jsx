@@ -87,7 +87,11 @@ export default function App() {
   const [usage, setUsage] = useState({});
   const [showEditor, setShowEditor] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [showAbout, setShowAbout] = useState(false);
   const [importText, setImportText] = useState("");
+
+  // NEW: which cards are visible
+  const [visibleIds, setVisibleIds] = useState(() => defaultCards.map(c => c.id));
 
   useEffect(() => {
     const saved = loadState();
@@ -95,12 +99,23 @@ export default function App() {
       if (saved.cards) setCards(saved.cards);
       if (saved.year) setYear(saved.year);
       if (saved.usage) setUsage(saved.usage);
+      if (saved.visibleIds) setVisibleIds(saved.visibleIds);
     }
   }, []);
 
+  // keep visibleIds valid if cards change
   useEffect(() => {
-    saveState({ cards, year, usage });
-  }, [cards, year, usage]);
+    const allIds = cards.map(c => c.id);
+    setVisibleIds(prev => {
+      const filtered = prev.filter(id => allIds.includes(id));
+      return filtered.length ? filtered : allIds;
+    });
+  }, [cards]);
+
+  // persist everything
+  useEffect(() => {
+    saveState({ cards, year, usage, visibleIds });
+  }, [cards, year, usage, visibleIds]);
 
   const { totalsByCard, grand } = useMemo(() => computeTotals(cards, usage, year), [cards, usage, year]);
 
@@ -123,7 +138,7 @@ export default function App() {
   };
 
   const exportData = () => {
-    const blob = new Blob([JSON.stringify({ cards, year, usage }, null, 2)], { type: "application/json" });
+    const blob = new Blob([JSON.stringify({ cards, year, usage, visibleIds }, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -138,6 +153,7 @@ export default function App() {
       if (obj.cards) setCards(obj.cards);
       if (obj.year) setYear(obj.year);
       if (obj.usage) setUsage(obj.usage);
+      if (obj.visibleIds) setVisibleIds(obj.visibleIds);
       setShowImport(false);
       setImportText("");
     } catch (e) {
@@ -158,9 +174,20 @@ export default function App() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <YearPicker year={year} setYear={setYear} />
-            <button className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-sm" onClick={() => setShowEditor(true)}>Edit Cards & Credits</button>
+
+            {/* Card filter pills */}
+            <CardFilter
+              cards={cards}
+              visibleIds={visibleIds}
+              setVisibleIds={setVisibleIds}
+            />
+
             <button className="px-3 py-1.5 rounded-xl bg-white border text-sm" onClick={exportData}>Export JSON</button>
             <button className="px-3 py-1.5 rounded-xl bg-white border text-sm" onClick={() => setShowImport(true)}>Import JSON</button>
+            <button className="px-3 py-1.5 rounded-xl bg-white border text-sm" onClick={() => setShowAbout(true)}>About / Privacy</button>
+
+            {/* optional tiny gear to still access the full editor */}
+            <button className="px-3 py-1.5 rounded-xl bg-white border text-sm" title="Manage cards & credits" onClick={() => setShowEditor(true)}>⚙️ Manage</button>
           </div>
         </div>
       </header>
@@ -175,9 +202,18 @@ export default function App() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {cards.map(card => (
-            <CardPanel key={card.id} card={card} year={year} totals={totalsByCard[card.id]} usage={usage} toggleUsage={toggleUsage} />
-          ))}
+          {cards
+            .filter(c => visibleIds.includes(c.id))
+            .map(card => (
+              <CardPanel
+                key={card.id}
+                card={card}
+                year={year}
+                totals={totalsByCard[card.id]}
+                usage={usage}
+                toggleUsage={toggleUsage}
+              />
+            ))}
         </div>
       </main>
 
@@ -193,6 +229,24 @@ export default function App() {
           <div className="mt-3 flex justify-end gap-2">
             <button className="px-3 py-1.5 rounded-xl bg-white border text-sm" onClick={() => setShowImport(false)}>Cancel</button>
             <button className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-sm" onClick={importData}>Import</button>
+          </div>
+        </Modal>
+      )}
+
+      {showAbout && (
+        <Modal title="About / Privacy" onClose={() => setShowAbout(false)}>
+          <div className="space-y-3 text-sm text-slate-700">
+            <p>
+              This app is a personal <strong>credit card credits tracker</strong> built with React + GitHub Pages.
+              It helps you keep track of monthly, semi-annual, and annual credits across your cards.
+            </p>
+            <p>
+              <strong>Your data never leaves your browser.</strong> All usage and card info is stored in <em>localStorage</em> on your device.
+              Nothing is sent to any server or stored online.
+            </p>
+            <p>
+              Everyone’s data is isolated. To back up or move your data, use the <em>Export JSON</em> / <em>Import JSON</em> buttons.
+            </p>
           </div>
         </Modal>
       )}
@@ -343,6 +397,46 @@ function Modal({ title, children, onClose }) {
   );
 }
 
+function CardFilter({ cards, visibleIds, setVisibleIds }) {
+  const allSelected = visibleIds.length === cards.length;
+
+  const toggle = (id) => {
+    setVisibleIds((ids) =>
+      ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
+    );
+  };
+
+  const selectAll = () => setVisibleIds(cards.map(c => c.id));
+  const clearAll  = () => setVisibleIds([]);
+
+  return (
+    <div className="flex items-center gap-2 overflow-x-auto py-1">
+      <button
+        className={`px-3 py-1.5 rounded-xl border text-sm ${allSelected ? 'bg-slate-900 text-white border-slate-900' : 'bg-white'}`}
+        onClick={allSelected ? clearAll : selectAll}
+        title={allSelected ? 'Hide all' : 'Show all'}
+      >
+        {allSelected ? 'Hide all' : 'Show all'}
+      </button>
+      {cards.map(c => {
+        const active = visibleIds.includes(c.id);
+        return (
+          <button
+            key={c.id}
+            onClick={() => toggle(c.id)}
+            className={`px-3 py-1.5 rounded-xl border text-sm whitespace-nowrap ${
+              active ? 'bg-emerald-50 border-emerald-300 text-emerald-800' : 'bg-white'
+            }`}
+            title={active ? 'Hide' : 'Show'}
+          >
+            {c.name}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function Editor({ cards, setCards }) {
   const [local, setLocal] = useState(JSON.parse(JSON.stringify(cards)));
 
@@ -398,7 +492,9 @@ function Editor({ cards, setCards }) {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <p className="text-sm text-slate-600">Add/remove cards and credits, adjust amounts, or change cadence. Click <span className="font-medium">Apply</span> to save.</p>
+        <p className="text-sm text-slate-600">
+          Add/remove cards and credits, adjust amounts, or change cadence. Click <span className="font-medium">Apply</span> to save.
+        </p>
         <div className="flex gap-2">
           <button className="px-3 py-1.5 rounded-xl bg-white border text-sm" onClick={addCard}>Add Card</button>
           <button className="px-3 py-1.5 rounded-xl bg-slate-900 text-white text-sm" onClick={() => setCards(local)}>Apply</button>
@@ -449,3 +545,4 @@ function Editor({ cards, setCards }) {
     </div>
   );
 }
+
